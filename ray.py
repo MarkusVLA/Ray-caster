@@ -1,25 +1,36 @@
 #Raycasting test
 from time import sleep
+import pygame.font
 import pygame as pg
 from numba import jit
-from math import sin, cos, sqrt
+from math import sin, cos, sqrt, pi
 
-
+pygame.init()
 DIM = (1200, 800)
 
-canvas = pg.Surface(DIM)
+test_canvas = pg.Surface(DIM)
 screen = pg.display.set_mode(DIM)
 pg.display.set_caption("Ray caster")
 
-canvas.fill((100,200,255))
-
+test_canvas.fill((100,200,255))
+LIGHT = pg.transform.scale(pg.image.load('lib/light.png'), (1000, 1000)).convert()
 pg.display.flip()
+
+class Debug(object):
+	def __init__(self) -> None:
+		self.clock = pg.time.Clock()
+		self.font = pygame.font.SysFont("Verdana", 11)
+		self.text = ""
+
+	def render(self, surface, text):
+		self.text = self.font.render(text, True, 'white')
+		surface.blit(self.text, (5,5))
 
 
 class Ray(object):
 
 
-	def __init__(self, x1, y1, cast_dist, angle):
+	def __init__(self, x1, y1, cast_dist, angle, ray_id):
 
 		#starting position
 		self.x1 = x1
@@ -30,12 +41,14 @@ class Ray(object):
 		self.y2 = 0
 
 		self.cast_dist = cast_dist
-		self.angle = angle
-	
+		self.angle = angle * pi/180
+
+		self.ray_id = ray_id
+
 
 	def update_pos(self, nx, ny):
 		self.x1, self.y1 = nx, ny
-
+		
 
 	def find_end(self, lines):
 
@@ -52,7 +65,6 @@ class Ray(object):
 
 			lx1 = lines[line][0][0]
 			ly1 = lines[line][0][1]
-
 			lx2 = lines[line][1][0]
 			ly2 = lines[line][1][1]
 
@@ -90,6 +102,7 @@ class Ray(object):
 		except:
 			pass
 
+
 	def render(self, surface, x_offsett, y_offsett):
 		pg.draw.line(surface, (100,100,100), (self.x1 + x_offsett, self.y1 + y_offsett), (self.x2 + y_offsett, self.y2 + y_offsett))
 
@@ -113,26 +126,49 @@ def intersection(x1, y1, x2, y2, x3, y3, x4, y4):
 
 
 def create_rays(x1, y1) -> list:
-
-	angle = 1
+	const = 0.5
+	angles = []
+	for i in range(int(360 / const)):
+		angles.append(i * const)
 	rays = []
 	#ray angle: fix
-	for r in range(round(360 / angle)):
-		ray = Ray(x1, y1, 1000, r * angle)
+	for r in range(len(angles)):
+		ray = Ray(x1, y1, 400, angles[r], r)
 
 		#ray array
 		rays.append(ray)
 
+	#rays = sort_rays(rays)
 	return rays
+
+
+def sort_rays(rays):
+	#Sort rays in to correct rendering order
+	rays.sort(key = lambda ray: ray.angle, reverse = False)
+	return rays
+
+
+def make_polygon(points, surface, size, pos):
+	#points = ((x1,y1), (x2, y2), (x3, y3)), surface, size = (x,y)
+	#pg.draw.polygon(surface, (255,255,160), points, width=0)
+	new_surf = pg.Surface(size)
+	new_surf.fill((0,0,0))
+	pg.draw.polygon(new_surf, (255,0,0), points, width=0)
+	new_surf.set_colorkey((255,0,0))
+
+	#########
+	surface.blit(LIGHT, (pos[0] - 500, pos[1] - 500))	
+	surface.blit(new_surf, (0,0))
 
 
 
 ###			MAP			###
+
 game_map = [
 
 	((50,200), (500,200)),
 	((100, 100,), (600,50)),
-	((500,300), (500,1000)),
+	((900,300), (1000,1000)),
 	((600,10), (400,500)),
 	((330,300), (300, 330))
 
@@ -144,14 +180,13 @@ def draw_map(line_map):
 
 		#map line
 		x1 = game_map[l][0][0]
-		print(x1)
 		y1 = game_map[l][0][1]
 
 		x2 = game_map[l][1][0]
 		y2 = game_map[l][1][1]
 
 
-		pg.draw.line(canvas, 'green', (x1, y1), (x2, y2))
+		pg.draw.line(test_canvas, 'green', (x1, y1), (x2, y2))
 
 
 
@@ -159,19 +194,20 @@ def draw_map(line_map):
 def main() -> None:
 
 	running = True
-
 	rays = create_rays(0,0)
 
- 
+	clock = pg.time.Clock()
+
 	mouse_pos = pg.mouse.get_pos()
 
-	print(mouse_pos)
-
+	debug = Debug()
+	fps = 'begin'
 	while (running):
 
+		pol = []
 
 		#clear last frame
-		canvas.fill((20, 30, 40))
+		test_canvas.fill((20, 30, 40))
 		
 		#Start of frame:
 
@@ -180,26 +216,31 @@ def main() -> None:
 		mouse_pos = pg.mouse.get_pos()
 
 		for r in range(len(rays)):
+			#########
 			rays[r].update_pos(mouse_pos[0], mouse_pos[1])
 
+
+			
 			rays[r].find_end(game_map)
+			#rays[r].render(test_canvas , 0, 0)
+			pol.append((rays[r].x2, rays[r].y2))
 
-			rays[r].render(canvas , 0, 0)
-
+		make_polygon(pol, test_canvas, DIM,  mouse_pos)
 
 		draw_map(game_map)
 
+		debug.render(test_canvas, fps)
 		#end of frame
 
 		for event in pg.event.get():
 			if event.type == pg.QUIT:
 				running = False
 
-		screen.blit(canvas, (0,0))
+		screen.blit(test_canvas, (0,0))
 		pg.display.flip()
-		sleep(1/60)
-
-
+		#sleep(1/60)
+		clock.tick()
+		fps = f"FPS: {str(int(clock.get_fps()))}"
 if __name__ == "__main__":
 	main()
 

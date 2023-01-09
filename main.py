@@ -124,8 +124,14 @@ def input_events(player) -> None:
 def loop(entities, tiles, rays, line_map) -> None:
 	#Main game loop
 	running = True
+	clock = pg.time.Clock()
+	debug = Debug()
+	fps = 'None'
 
 	while running:
+
+		pol = []
+
 		#clear last frame:
 		canvas.fill((20,30,40))
 		shader.fill(0)
@@ -146,17 +152,21 @@ def loop(entities, tiles, rays, line_map) -> None:
 
 		#	RAY CASTING
 		for r in range(len(rays)):
+			
 			rays[r].update_pos(entities[0].x, entities[0].y)
-
 			rays[r].find_end(line_map)
+			#rays[r].render(shader, scroll[0], scroll[1])
 
-			rays[r].render(shader, scroll[0], scroll[1])
+			pol.append((rays[r].x2, rays[r].y2))
+
+		make_polygon(pol, shader, CANVAS_DIM, (entities[0].x, entities[0].y))
 
 		#draw map outlines
 		for line in range(len(line_map)):
 			#print(line_map[line][1])
-			pg.draw.line(canvas, (0,100,80), (line_map[line][0][0], line_map[line][0][1]), (line_map[line][1][0], line_map[line][1][1]))
+			pg.draw.line(shader, (0,100,80), (line_map[line][0][0], line_map[line][0][1]), (line_map[line][1][0], line_map[line][1][1]))
 
+		debug.render(shader, fps)
 		for event in pg.event.get():
 			if event.type == pg.QUIT:
 				running = False
@@ -167,9 +177,8 @@ def loop(entities, tiles, rays, line_map) -> None:
 		scaled = pg.transform.scale(canvas, WINDOW_DIM)
 		screen.blit(scaled,(0,0))
 		pg.display.flip()
-
-		sleep(1/60)
-
+		fps = f"FPS: {str(int(clock.get_fps()))}"
+		clock.tick(63)
 
 def load_level(level) -> list:
 
@@ -200,7 +209,7 @@ def main() -> None:
 		lines = tiles[t].get_lines()
 		for i in range(4):
 			line_map.append(lines[i])
-	
+
 	print(f"lineMap:\n{line_map}")
 
 	rays = create_rays(0,0)
@@ -208,7 +217,6 @@ def main() -> None:
 	entities.append(player)
 	mouse_pos = pg.mouse.get_pos()
 	print(mouse_pos)
-
 
 	loop(entities, tiles, rays, line_map)
 
