@@ -8,12 +8,15 @@ from math import sin, cos, sqrt, pi
 pygame.init()
 DIM = (1200, 800)
 
+
+LIGHT_SCALE = 400
+
 test_canvas = pg.Surface(DIM)
 screen = pg.display.set_mode(DIM)
 pg.display.set_caption("Ray caster")
 
 test_canvas.fill((100,200,255))
-LIGHT = pg.transform.scale(pg.image.load('lib/light.png'), (1000, 1000)).convert()
+LIGHT = pg.transform.scale(pg.image.load('lib/light_t2.png'), (LIGHT_SCALE, LIGHT_SCALE))
 pg.display.flip()
 
 class Debug(object):
@@ -28,7 +31,6 @@ class Debug(object):
 
 
 class Ray(object):
-
 
 	def __init__(self, x1, y1, cast_dist, angle, ray_id):
 
@@ -126,14 +128,14 @@ def intersection(x1, y1, x2, y2, x3, y3, x4, y4):
 
 
 def create_rays(x1, y1) -> list:
-	const = 0.5
+	const = 1
 	angles = []
 	for i in range(int(360 / const)):
 		angles.append(i * const)
 	rays = []
 	#ray angle: fix
 	for r in range(len(angles)):
-		ray = Ray(x1, y1, 400, angles[r], r)
+		ray = Ray(x1, y1, LIGHT_SCALE/2 - 1, angles[r], r)
 
 		#ray array
 		rays.append(ray)
@@ -151,13 +153,13 @@ def sort_rays(rays):
 def make_polygon(points, surface, size, pos):
 	#points = ((x1,y1), (x2, y2), (x3, y3)), surface, size = (x,y)
 	#pg.draw.polygon(surface, (255,255,160), points, width=0)
-	new_surf = pg.Surface(size)
-	new_surf.fill((0,0,0))
+	new_surf = pg.Surface(size, pg.SRCALPHA, 32)
+	new_surf.fill((20,30,40))
 	pg.draw.polygon(new_surf, (255,0,0), points, width=0)
 	new_surf.set_colorkey((255,0,0))
 
 	#########
-	surface.blit(LIGHT, (pos[0] - 500, pos[1] - 500))	
+	surface.blit(LIGHT, (pos[0] - LIGHT_SCALE/2 , pos[1] - LIGHT_SCALE/2))	
 	surface.blit(new_surf, (0,0))
 
 

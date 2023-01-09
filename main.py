@@ -35,7 +35,7 @@ shader = shader.convert_alpha()
 TILE = pg.transform.scale(pg.image.load('lib/test.png'), (TILE_SIZE, TILE_SIZE)).convert()
 PLAYER = pg.transform.scale(pg.image.load('lib/test.png'), (4, 4)).convert()
 LIGHT = pg.transform.scale(pg.image.load('lib/light.png'), (40, 40))
-
+BACK_GROUND = pg.transform.scale(pg.image.load('lib/stone.png'), (CANVAS_DIM)).convert()
 
 
 class Entity(object):
@@ -136,6 +136,7 @@ def loop(entities, tiles, rays, line_map) -> None:
 		canvas.fill((20,30,40))
 		shader.fill(0)
 
+		canvas.blit(BACK_GROUND,(0,0))
 		#Move player
 		input_events(entities[0])
 
@@ -178,7 +179,7 @@ def loop(entities, tiles, rays, line_map) -> None:
 		screen.blit(scaled,(0,0))
 		pg.display.flip()
 		fps = f"FPS: {str(int(clock.get_fps()))}"
-		clock.tick(63)
+		clock.tick(60)
 
 def load_level(level) -> list:
 
