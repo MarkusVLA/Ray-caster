@@ -1,27 +1,20 @@
 #Testing
-
+from config import * 
 import numpy as np
-import sys
+
 import pygame as pg
-from time import sleep
-from ray import *
+from debug import Debug_menu
+from ray import Ray, Light
+from debug import Debug_menu
 
 
-#ray caster ray length:
-CAST_LENGTH = 50
-TILE_SIZE = 32
-
-#init pygame display
-WINDOW_DIM = (1200, 600)
-CANVAS_DIM = (400, 200)
-
+#render surfaces:
 canvas = pg.Surface(CANVAS_DIM)
-
-#Shader surface to draw shader effects on:
+#shader surface
 shader = pg.Surface(CANVAS_DIM, pg.SRCALPHA, 32)
 
 
-scroll = [0,0]
+
 
 screen = pg.display.set_mode(WINDOW_DIM)
 pg.display.set_caption("Ray caster")
@@ -31,43 +24,59 @@ shader = shader.convert_alpha()
 
 
 
-#textures:
-TILE = pg.transform.scale(pg.image.load('lib/test.png'), (TILE_SIZE, TILE_SIZE)).convert()
-PLAYER = pg.transform.scale(pg.image.load('lib/test.png'), (4, 4)).convert()
-LIGHT = pg.transform.scale(pg.image.load('lib/light.png'), (40, 40))
-BACK_GROUND = pg.transform.scale(pg.image.load('lib/stone.png'), (CANVAS_DIM)).convert()
-
 
 class Entity(object):
 
 	#Common entity class
 
 	def __init__(self, name, speed) -> None:
-		self.name = name
-		self.x = 100
-		self.y = 50
-		self.speed = speed
-		self.rect = pg.Rect((self.x, self.y), (8, 8))
-		self.velocity = [0, 0]
-		self.facing = 'w'
+		
 		self.sprite = PLAYER
-		self.ray_cast_angle_const = 10
+		self.speed = speed
+		self.scale = (4, 4)
+		self.vel = 0
+		self.air_time = 0
+		self.is_jumping = True
+		self.rect = PLAYER.get_rect()
+		self.facing = True
+		self.run_count = 1
+
 
 	def render(self) -> None:
 		#select right sprite from list
-		canvas.blit(self.sprite, (self.x - scroll[0], self.y - scroll[1]))
+		canvas.blit(self.sprite, (self.rect.x - SCROLL[0], self.rect.y - SCROLL[1]))
 
 
-	def move(self, dx, dy) -> None:
+	def move(self) -> None:
 
-		self.x += dx * self.speed
-		#scroll[0] += dx
+		#Get pressed keys
+		keys = pg.key.get_pressed()
+		#Check what keys are pressed and save them in move_vector
+		move_vector = [0,0]
+		#left and right
+		if keys[ord('a')]:
+			move_vector[0] -= 1
+			self.facing = False
 
-		self.y += dy * self.speed
-		#scroll[1] += dy
+		if keys[ord('d')]:
+			move_vector[0] -= -1
+			self.facing = False
+			
 
-	def cast_rays(self):
-		pass
+		if keys[ord('w')]:
+			move_vector[1] += -1
+			self.facing = True
+
+		if keys[ord('s')]:
+			move_vector[1] += 1
+			self.facing = True
+
+
+
+		#collision testing do mathematically: intersection of line and parabola
+		self.rect.x += move_vector[0] * self.speed
+		self.rect.y += move_vector[1] * self.speed
+
 
 
 class Tile(object):
@@ -83,7 +92,7 @@ class Tile(object):
 
 
 	def render(self) -> None:
-		canvas.blit(self.sprite, (self.x * self.size - scroll[0], self.y * self.size - scroll[1]))
+		shader.blit(self.sprite, (self.x * self.size - SCROLL[0], self.y * self.size - SCROLL[1]))
 
 	def get_lines(self):
 
@@ -101,32 +110,22 @@ class Tile(object):
 
 
 
-
-
-def input_events(player) -> None:
-
-	keys = pg.key.get_pressed()
-
-	if keys[ord('a')]:
-		player.move(-1, 0)
-
-	if keys[ord('d')]:
-		player.move(1, 0)
-
-	if keys[ord('w')]:
-		player.move(0, -1)
-
-	if keys[ord('s')]:
-		player.move(0, 1)
+def collision_test(rect_1, rect_2):
+	if rect_1.colliderect(rect_2):
+		return True
 
 
 
-def loop(entities, tiles, rays, line_map) -> None:
+
+
+def loop(entities, tiles, line_map) -> None:
 	#Main game loop
 	running = True
 	clock = pg.time.Clock()
-	debug = Debug()
+	debug = Debug_menu()
 	fps = 'None'
+
+	test_light = Light(0,0, line_map)
 
 	while running:
 
@@ -138,36 +137,34 @@ def loop(entities, tiles, rays, line_map) -> None:
 
 		canvas.blit(BACK_GROUND,(0,0))
 		#Move player
-		input_events(entities[0])
+		entities[0].move()
 
 		#render entities
 		for entity in range(len(entities)):
 			entities[entity].render()
 
+
+		#	RAY CASTING
+		#mouse_pos = pg.mouse.get_pos()
+
+		#test_light.update(mouse_pos[0], mouse_pos[1])
+		test_light.update(entities[0].rect.x,entities[0].rect.y)
+		
+
+
+		test_light.render_light(canvas)	
+
+		#draw map outlines
+
 		#render tiles
 		for tile in range(len(tiles)):
 			tiles[tile].render()
-		#Render lights
 
-		mouse_pos = pg.mouse.get_pos()
 
-		#	RAY CASTING
-		for r in range(len(rays)):
-			
-			rays[r].update_pos(entities[0].x, entities[0].y)
-			rays[r].find_end(line_map)
-			#rays[r].render(shader, scroll[0], scroll[1])
-
-			pol.append((rays[r].x2, rays[r].y2))
-
-		make_polygon(pol, shader, CANVAS_DIM, (entities[0].x, entities[0].y))
-
-		#draw map outlines
 		for line in range(len(line_map)):
 			#print(line_map[line][1])
-			pg.draw.line(shader, (0,100,80), (line_map[line][0][0], line_map[line][0][1]), (line_map[line][1][0], line_map[line][1][1]))
+			pg.draw.line(shader, (0,60,50), (line_map[line][0][0], line_map[line][0][1]), (line_map[line][1][0], line_map[line][1][1]))
 
-		debug.render(shader, fps)
 		for event in pg.event.get():
 			if event.type == pg.QUIT:
 				running = False
@@ -177,9 +174,12 @@ def loop(entities, tiles, rays, line_map) -> None:
 
 		scaled = pg.transform.scale(canvas, WINDOW_DIM)
 		screen.blit(scaled,(0,0))
+		debug.render(screen, fps)
 		pg.display.flip()
 		fps = f"FPS: {str(int(clock.get_fps()))}"
-		clock.tick(60)
+		clock.tick(FPS)
+
+
 
 def load_level(level) -> list:
 
@@ -212,14 +212,13 @@ def main() -> None:
 			line_map.append(lines[i])
 
 	print(f"lineMap:\n{line_map}")
-
-	rays = create_rays(0,0)
-	player = Entity('player', speed = 3)
+	
+	player = Entity('player', speed = 1)
 	entities.append(player)
 	mouse_pos = pg.mouse.get_pos()
 	print(mouse_pos)
 
-	loop(entities, tiles, rays, line_map)
+	loop(entities, tiles, line_map)
 
 
 if __name__ == "__main__":
